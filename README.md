@@ -1,4 +1,17 @@
-# AwesomeEnglishTeacher
+# Awesome English Mentor
+
+## How to Debug
+
+First, install ts-node globally:
+```shell
+npm install -g ts-node
+```
+
+Then you can run the debug command:
+```shell
+ts-node ./src/debug/kimiTranslator.cli.ts '测试文本'
+```
+
 
 ## Contributing
 

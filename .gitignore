@@ -7,4 +7,7 @@ yarn.lock
 dist/
 
 .idea
-vscode
+.vscode
+
+data.json
+test/test-config.ts
