@@ -200,6 +200,7 @@ class SampleSettingTab extends PluginSettingTab {
           this.plugin.settings.translatorSettings.provider = value;
           await this.plugin.saveSettings();
           this.plugin.reloadTranslator();
+          this.display();
         });
       });
 
@@ -207,7 +208,7 @@ class SampleSettingTab extends PluginSettingTab {
       .setName("Proxy Address")
       .setDesc("HTTP proxy address (optional)")
       .addText(text => text
-        .setPlaceholder("http://127.0.0.1:7890")
+        .setPlaceholder("e.g. http://127.0.0.1:7890")
         .setValue(this.plugin.settings.translatorSettings.proxyAddress)
         .onChange(async (value) => {
           this.plugin.settings.translatorSettings.proxyAddress = value;
@@ -215,19 +216,17 @@ class SampleSettingTab extends PluginSettingTab {
           this.plugin.reloadTranslator();
         }));
 
-    // Add API key settings for each provider
-    ['OpenAI', 'DeepSeek', 'Kimi', 'Coze'].forEach(provider => {
-      new Setting(containerEl)
-        .setName(`${provider} API Key`)
-        .setDesc(`API Key for ${provider}`)
-        .addText(text => text
-          .setPlaceholder("Enter API Key")
-          .setValue(this.plugin.settings.translatorSettings.apiKeys[provider])
-          .onChange(async (value) => {
-            this.plugin.settings.translatorSettings.apiKeys[provider] = value;
-            await this.plugin.saveSettings();
-            this.plugin.reloadTranslator();
-          }));
-    });
+    const currentProvider = this.plugin.settings.translatorSettings.provider;
+    new Setting(containerEl)
+      .setName("API Key")
+      .setDesc(`API Key for ${currentProvider}`)
+      .addText(text => text
+        .setPlaceholder("Enter API Key")
+        .setValue(this.plugin.settings.translatorSettings.apiKeys[currentProvider])
+        .onChange(async (value) => {
+          this.plugin.settings.translatorSettings.apiKeys[currentProvider] = value;
+          await this.plugin.saveSettings();
+          this.plugin.reloadTranslator();
+        }));
   }
 }
