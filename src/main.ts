@@ -4,6 +4,7 @@ import {OpenAITranslator, KimiTranslator, CozeTranslator, DeepSeekTranslator} fr
 import {BaseTranslator} from "./BaseTranslator";
 import * as HttpsProxyAgentPkg from 'https-proxy-agent';
 const HttpsProxyAgent = HttpsProxyAgentPkg.HttpsProxyAgent;
+import { PluginSettings, PROVIDERS, Provider } from './types';
 
 interface TranslatorSettings {
   provider: string;
@@ -31,7 +32,7 @@ const DEFAULT_SETTINGS: AwesomeEnglishTeacherSettings = {
 };
 
 export default class AwesomeEnglishTeacher extends Plugin {
-  settings: AwesomeEnglishTeacherSettings;
+  settings: PluginSettings;
   translator: BaseTranslator;
   commands: any[];
 
@@ -78,7 +79,7 @@ export default class AwesomeEnglishTeacher extends Plugin {
       }
     })
 
-    this.addSettingTab(new SampleSettingTab(this.app, this));
+    this.addSettingTab(new AwesomeEnglishTeacherSettingTab(this.app, this));
 
     /*
     this.registerDomEvent(document, "click", (evt: MouseEvent) => {
@@ -135,43 +136,27 @@ export default class AwesomeEnglishTeacher extends Plugin {
   }
 
   reloadTranslator() {
-    const settings = this.settings.translatorSettings;
+    const currentProvider = this.settings.currentProvider;
+    const settings = this.settings.providers[currentProvider];
     const proxyAgent = settings.proxyAddress ? 
       new HttpsProxyAgent(settings.proxyAddress) : null;
-    const apiKey = settings.apiKeys[settings.provider];
 
-    switch (settings.provider) {
+    switch (currentProvider) {
       case "OpenAI":
-        this.translator = new OpenAITranslator(apiKey, proxyAgent);
+        this.translator = new OpenAITranslator(settings.apiKey, proxyAgent);
         break;
       case "Kimi":
-        this.translator = new KimiTranslator(apiKey, proxyAgent);
+        this.translator = new KimiTranslator(settings.apiKey, proxyAgent);
         break;
       case "DeepSeek":
-        this.translator = new DeepSeekTranslator(apiKey, proxyAgent);
+        this.translator = new DeepSeekTranslator(settings.apiKey, proxyAgent);
         break;
       case "Coze":
-        this.translator = new CozeTranslator(apiKey, proxyAgent);
+        this.translator = new CozeTranslator(settings.apiKey, proxyAgent);
         break;
       default:
-        this.translator = new DeepSeekTranslator(apiKey, proxyAgent);
+        this.translator = new DeepSeekTranslator(settings.apiKey, proxyAgent);
     }
-  }
-}
-
-class SampleModal extends Modal {
-  constructor(app: App) {
-    super(app);
-  }
-
-  onOpen() {
-    let {contentEl} = this;
-    contentEl.setText("Woah!");
-  }
-
-  onClose() {
-    let {contentEl} = this;
-    contentEl.empty();
   }
 }
 
@@ -230,3 +215,98 @@ class SampleSettingTab extends PluginSettingTab {
         }));
   }
 }
+
+class AwesomeEnglishTeacherSettingTab extends PluginSettingTab {
+
+  plugin: AwesomeEnglishTeacher;
+
+  constructor(app: App, plugin: AwesomeEnglishTeacher) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const {containerEl} = this;
+    containerEl.empty();
+    containerEl.createEl("h2", {text: "English Teacher Settings"});
+
+    const currentProvider = this.plugin.settings.currentProvider as Provider;
+    const currentSettings = this.plugin.settings.providers[currentProvider];
+
+    new Setting(containerEl)
+      .setName("Provider Profile")
+      .setDesc("Select your AI provider")
+      .addDropdown((dropdown) => {
+        PROVIDERS.forEach(provider => {
+          dropdown.addOption(provider, provider);
+        });
+        dropdown
+          .setValue(currentProvider)
+          .onChange(async (value) => {
+            this.plugin.settings.currentProvider = value as Provider;
+            await this.plugin.saveSettings();
+            this.plugin.reloadTranslators();
+            // Refresh the settings display to update fields
+            this.display();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("API Key")
+      .setDesc(this.getApiKeyDescription())
+      .addText((text) =>
+        text
+          .setPlaceholder(this.getApiKeyPlaceholder())
+          .setValue(currentSettings.apiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.providers[currentProvider].apiKey = value;
+            await this.plugin.saveSettings();
+            this.plugin.reloadTranslators();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName("Proxy Address")
+      .setDesc("Enter the proxy address (optional)")
+      .addText((text) =>
+        text
+          .setPlaceholder("http://127.0.0.1:7890")
+          .setValue(currentSettings.proxyAddress)
+          .onChange(async (value) => {
+            this.plugin.settings.providers[currentProvider].proxyAddress = value;
+            await this.plugin.saveSettings();
+            this.plugin.reloadTranslators();
+          })
+      );
+  }
+
+  private getApiKeyDescription(): string {
+    switch (this.plugin.settings.currentProvider) {
+      case "OpenAI":
+        return "Enter your OpenAI API key (starts with 'sk-')";
+      case "Kimi":
+        return "Enter your Moonshot/Kimi API key";
+      case "DeepSeek":
+        return "Enter your DeepSeek API key";
+      case "Coze":
+        return "Enter your Coze API key (starts with 'pat_')";
+      default:
+        return "Enter your API key";
+    }
+  }
+
+  private getApiKeyPlaceholder(): string {
+    switch (this.plugin.settings.currentProvider) {
+      case "OpenAI":
+        return "sk-...";
+      case "Kimi":
+        return "sk-...";
+      case "DeepSeek":
+        return "sk-...";
+      case "Coze":
+        return "pat_...";
+      default:
+        return "Enter API key";
+    }
+  }
+} 
