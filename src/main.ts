@@ -6,28 +6,25 @@ import * as HttpsProxyAgentPkg from 'https-proxy-agent';
 const HttpsProxyAgent = HttpsProxyAgentPkg.HttpsProxyAgent;
 import { PluginSettings, PROVIDERS, Provider } from './types';
 
-interface TranslatorSettings {
-  provider: string;
-  apiKeys: {
-    [key: string]: string;
-  };
-  proxyAddress?: string;
-}
-
-interface AwesomeEnglishTeacherSettings {
-  translatorSettings: TranslatorSettings;
-}
-
-const DEFAULT_SETTINGS: AwesomeEnglishTeacherSettings = {
-  translatorSettings: {
-    provider: 'DeepSeek',
-    apiKeys: {
-      OpenAI: '',
-      DeepSeek: '',
-      Kimi: '',
-      Coze: ''
+const DEFAULT_SETTINGS: PluginSettings = {
+  currentProvider: 'DeepSeek',
+  providers: {
+    OpenAI: {
+      apiKey: '',
+      proxyAddress: ''
     },
-    proxyAddress: ''
+    DeepSeek: {
+      apiKey: '',
+      proxyAddress: ''
+    },
+    Kimi: {
+      apiKey: '',
+      proxyAddress: ''
+    },
+    Coze: {
+      apiKey: '',
+      proxyAddress: ''
+    }
   }
 };
 
@@ -38,6 +35,7 @@ export default class AwesomeEnglishTeacher extends Plugin {
 
   async onload() {
     console.log("===============> loading plugin");
+    this.settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
     await this.loadSettings();
     this.reloadTranslator();
 
@@ -128,7 +126,15 @@ export default class AwesomeEnglishTeacher extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const loadedData = await this.loadData();
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...loadedData,
+      providers: {
+        ...DEFAULT_SETTINGS.providers,
+        ...(loadedData?.providers || {})
+      }
+    };
   }
 
   async saveSettings() {
@@ -138,6 +144,10 @@ export default class AwesomeEnglishTeacher extends Plugin {
   reloadTranslator() {
     const currentProvider = this.settings.currentProvider;
     const settings = this.settings.providers[currentProvider];
+    if (!settings) {
+      console.warn(`No settings found for provider ${currentProvider}, using defaults`);
+      return;
+    }
     const proxyAgent = settings.proxyAddress ? 
       new HttpsProxyAgent(settings.proxyAddress) : null;
 
@@ -157,62 +167,6 @@ export default class AwesomeEnglishTeacher extends Plugin {
       default:
         this.translator = new DeepSeekTranslator(settings.apiKey, proxyAgent);
     }
-  }
-}
-
-class SampleSettingTab extends PluginSettingTab {
-  plugin: AwesomeEnglishTeacher;
-
-  constructor(app: App, plugin: AwesomeEnglishTeacher) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    let {containerEl} = this;
-    containerEl.empty();
-    containerEl.createEl("h1", {text: "Awesome English Mentor - Settings"});
-
-    new Setting(containerEl)
-      .setName("Select translator")
-      .setDesc("Select translator for the plugin")
-      .addDropdown((dropdown) => {
-        dropdown.addOption('DeepSeek', 'DeepSeek');
-        dropdown.addOption('kimi', 'Kimi');
-        dropdown.addOption('coze', 'Coze');
-        dropdown.setValue(this.plugin.settings.translatorSettings.provider)
-        dropdown.onChange(async (value) => {
-          this.plugin.settings.translatorSettings.provider = value;
-          await this.plugin.saveSettings();
-          this.plugin.reloadTranslator();
-          this.display();
-        });
-      });
-
-    new Setting(containerEl)
-      .setName("Proxy Address")
-      .setDesc("HTTP proxy address (optional)")
-      .addText(text => text
-        .setPlaceholder("e.g. http://127.0.0.1:7890")
-        .setValue(this.plugin.settings.translatorSettings.proxyAddress)
-        .onChange(async (value) => {
-          this.plugin.settings.translatorSettings.proxyAddress = value;
-          await this.plugin.saveSettings();
-          this.plugin.reloadTranslator();
-        }));
-
-    const currentProvider = this.plugin.settings.translatorSettings.provider;
-    new Setting(containerEl)
-      .setName("API Key")
-      .setDesc(`API Key for ${currentProvider}`)
-      .addText(text => text
-        .setPlaceholder("Enter API Key")
-        .setValue(this.plugin.settings.translatorSettings.apiKeys[currentProvider])
-        .onChange(async (value) => {
-          this.plugin.settings.translatorSettings.apiKeys[currentProvider] = value;
-          await this.plugin.saveSettings();
-          this.plugin.reloadTranslator();
-        }));
   }
 }
 
@@ -245,7 +199,7 @@ class AwesomeEnglishTeacherSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.currentProvider = value as Provider;
             await this.plugin.saveSettings();
-            this.plugin.reloadTranslators();
+            this.plugin.reloadTranslator();
             // Refresh the settings display to update fields
             this.display();
           });
@@ -261,7 +215,7 @@ class AwesomeEnglishTeacherSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.providers[currentProvider].apiKey = value;
             await this.plugin.saveSettings();
-            this.plugin.reloadTranslators();
+            this.plugin.reloadTranslator();
           })
       );
 
@@ -275,7 +229,7 @@ class AwesomeEnglishTeacherSettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.providers[currentProvider].proxyAddress = value;
             await this.plugin.saveSettings();
-            this.plugin.reloadTranslators();
+            this.plugin.reloadTranslator();
           })
       );
   }

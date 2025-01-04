@@ -27,33 +27,42 @@ describe('AwesomeEnglishTeacher', () => {
     
     // Override loadData to return our test settings
     plugin.loadData = async () => ({
-      translatorSettings: {
-        provider: 'DeepSeek',
-        apiKeys: {
-          OpenAI: TEST_CONFIG.translators.OpenAI.apiKey,
-          DeepSeek: TEST_CONFIG.translators.DeepSeek.apiKey,
-          Kimi: TEST_CONFIG.translators.Kimi.apiKey,
-          Coze: TEST_CONFIG.translators.Coze.apiKey
+      currentProvider: 'DeepSeek',
+      providers: {
+        OpenAI: {
+          apiKey: TEST_CONFIG.translators.OpenAI.apiKey,
+          proxyAddress: TEST_CONFIG.translators.OpenAI.proxyAddress || ''
         },
-        proxyAddress: TEST_CONFIG.translators.DeepSeek.proxyAddress || undefined
+        DeepSeek: {
+          apiKey: TEST_CONFIG.translators.DeepSeek.apiKey,
+          proxyAddress: TEST_CONFIG.translators.DeepSeek.proxyAddress || ''
+        },
+        Kimi: {
+          apiKey: TEST_CONFIG.translators.Kimi.apiKey,
+          proxyAddress: TEST_CONFIG.translators.Kimi.proxyAddress || ''
+        },
+        Coze: {
+          apiKey: TEST_CONFIG.translators.Coze.apiKey,
+          proxyAddress: TEST_CONFIG.translators.Coze.proxyAddress || ''
+        }
       }
     });
     
     await plugin.loadSettings();
-    await plugin.onload(); // This will initialize commands array
+    await plugin.onload();
   });
 
   describe('Settings Management', () => {
     it('should load test settings', () => {
-      expect(plugin.settings.translatorSettings.provider).toBe('DeepSeek');
-      expect(plugin.settings.translatorSettings.apiKeys.DeepSeek)
+      expect(plugin.settings.currentProvider).toBe('DeepSeek');
+      expect(plugin.settings.providers.DeepSeek.apiKey)
         .toBe(TEST_CONFIG.translators.DeepSeek.apiKey);
     });
 
     it('should update settings and reload translator', async () => {
-      plugin.settings.translatorSettings.provider = 'OpenAI';
-      plugin.settings.translatorSettings.proxyAddress = 
-        TEST_CONFIG.translators.OpenAI.proxyAddress || undefined;
+      plugin.settings.currentProvider = 'OpenAI';
+      plugin.settings.providers.OpenAI.proxyAddress = 
+        TEST_CONFIG.translators.OpenAI.proxyAddress || '';
       await plugin.saveSettings();
       plugin.reloadTranslator();
 
@@ -61,11 +70,12 @@ describe('AwesomeEnglishTeacher', () => {
     });
 
     it('should update proxy settings', async () => {
-      plugin.settings.translatorSettings.proxyAddress = 'http://localhost:8080';
+      const testProxy = 'http://localhost:8080';
+      plugin.settings.providers.OpenAI.proxyAddress = testProxy;
       await plugin.saveSettings();
       plugin.reloadTranslator();
 
-      // You might need to modify this based on how you want to verify proxy settings
+      expect(plugin.settings.providers.OpenAI.proxyAddress).toBe(testProxy);
       expect(plugin.translator).toBeDefined();
     });
   });
@@ -102,7 +112,6 @@ describe('AwesomeEnglishTeacher', () => {
 
   describe('Editor Integration', () => {
     beforeEach(async () => {
-      // Ensure commands are initialized
       if (!plugin.commands) {
         await plugin.onload();
       }
