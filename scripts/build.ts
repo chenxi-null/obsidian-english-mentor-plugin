@@ -8,9 +8,10 @@ if (!pluginPath) {
 }
 
 const buildCommand = 'obsidian-plugin build src/main.ts';
-const copyCommand = `cp -r dist ${path.resolve(pluginPath)}`;
+const mkdirCommand = `mkdir -p '${path.resolve(pluginPath)}/english-mentor'`;
+const copyCommand = `cp -r dist/** '${path.resolve(pluginPath)}/english-mentor'`;
 
-exec(`${buildCommand} && ${copyCommand}`, (error, stdout, stderr) => {
+exec(`${buildCommand} && ${mkdirCommand} && ${copyCommand}`, (error, stdout, stderr) => {
   if (error) {
     console.error(`Error: ${error}`);
     return;
