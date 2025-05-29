@@ -98,11 +98,25 @@ export default class AwesomeEnglishTeacher extends Plugin {
       let selectedText = editor.getSelection();
       if (selectedText) {
         if (!checking) {
+          // Capture the original selection position before async operation
+          const selectionStart = editor.getCursor('from');
+          const selectionEnd = editor.getCursor('to');
+          const originalText = selectedText;
+          
           selectedText = prefix ? `${prefix}${selectedText}` : selectedText;
           this.doTranslate(selectedText)
             .then((result) => {
+              // Restore the original selection position
+              editor.setSelection(selectionStart, selectionEnd);
+              // Replace the text at the original position
               editor.replaceSelection(result);
-              console.log(`[mentor] [${this.translator}] ${selectedText} -> ${result}`);
+              console.log(`[mentor] [${this.translator}] ${originalText} -> ${result}`);
+            })
+            .catch((error) => {
+              console.error('Translation error:', error);
+              // Restore selection and show original text if translation fails
+              editor.setSelection(selectionStart, selectionEnd);
+              editor.replaceSelection(originalText);
             });
         }
         return true;
