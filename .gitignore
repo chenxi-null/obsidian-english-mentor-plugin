@@ -11,3 +11,4 @@ dist/
 
 data.json
 test/test-config.ts
+*.local.sh
